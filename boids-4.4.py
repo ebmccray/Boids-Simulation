@@ -12,8 +12,8 @@ import traceback
 import numpy as np
 from pygame import Rect, sprite
 from pygame.constants import MOUSEMOTION
-
 from pygame.math import Vector2
+import pygame_gui
 
 
 with open('traceback boid2s .txt', 'w+') as f:
@@ -42,8 +42,14 @@ with open('traceback boid2s .txt', 'w+') as f:
 
         # Boid movement:
         population = 50 # Max is about 125 with my machine
+        popmax = 125
+        popmin = 10
         targeted_boids = min(4, 0)
-        detection_radius = 75
+
+        detection_radius = 150
+        detection_min = 10
+        detection_max = 500
+
         division_factor1 = 1000
         division_factor2 = 32
         division_factor3 = 5000
@@ -52,7 +58,7 @@ with open('traceback boid2s .txt', 'w+') as f:
         inner_buffer = -50
         avoid_speed = 0.6
 
-        same_color_flocks = True
+        same_color_flocks = False
 
         # GROUPS AND ARRAYS
         all_sprites = pygame.sprite.Group()
@@ -114,6 +120,9 @@ with open('traceback boid2s .txt', 'w+') as f:
                 self.rotate(point)
 
                 self.rect.center = self.new_pos
+
+                if self.radius != detection_radius:
+                    self.radius = detection_radius
 
 
             def rotate(self, point): # Rotate the boid to face the direction of movement
@@ -363,6 +372,7 @@ with open('traceback boid2s .txt', 'w+') as f:
         def DrawGame():
             window.fill((BLACK))
             all_sprites.draw(window)
+            gui_manager.draw_ui(window)
             pygame.display.update()
 
         def InitPositions(): # Reset simulation and randomize positions and colors of all boids on screen
@@ -400,13 +410,20 @@ with open('traceback boid2s .txt', 'w+') as f:
             block = TempObstacle(coord)
             all_sprites.add(block)
 
+
         # INITIALIZATION
         pygame.init()
 
-        # Create window and define cclock
+        # WINDOW AND CLOCK
         window = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption(title + "-" + version)
         clock = pygame.time.Clock()
+
+        # GUI
+        gui_manager = pygame_gui.UIManager((WIDTH, HEIGHT))
+        view_radius_slider = pygame_gui.elements.UIHorizontalSlider(relative_rect=pygame.Rect((0,HEIGHT-50,WIDTH/2,50)), manager = gui_manager, start_value = detection_radius, value_range = (detection_min,detection_max))
+        flocks_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((WIDTH/2, HEIGHT-50), (300, 50)),text='Same-Color Flocks',manager=gui_manager)
+
 
         # SIM LOOP
         running = True
@@ -420,27 +437,41 @@ with open('traceback boid2s .txt', 'w+') as f:
         while running:
             # Set FPS
             clock.tick(FPS)
+            time_delta = clock.tick(FPS)/1000.0
 
             # Check for user input
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if not drawing:
-                        CreateTemp(pygame.mouse.get_pos())
-                    drawing = not drawing
-                elif event.type == pygame.KEYDOWN:
-                    key = event.key
-                    if key == pygame.K_RETURN:
-                        InitPositions()
-                    elif key == pygame.K_SPACE:
-                        paused = not paused
-                    elif key == pygame.K_ESCAPE:
+                match event.type:
+                    case pygame.QUIT:
                         running = False
+                    case pygame.MOUSEBUTTONDOWN:
+                        pass
+                        #if not drawing:
+                            #CreateTemp(pygame.mouse.get_pos())
+                        #drawing = not drawing
+                    case pygame.KEYDOWN:
+                        match event.key:
+                            case pygame.K_RETURN:
+                                InitPositions()
+                            case pygame.K_SPACE:
+                                paused = not paused
+                            case pygame.K_ESCAPE:
+                                running = False
+                    case pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
+                        match event.ui_element:
+                            case view_radius_slider:
+                                new_radius = view_radius_slider.get_current_value()
+                                detection_radius = new_radius
+                    case pygame_gui.UI_BUTTON_PRESSED:
+                        match event.ui_element:
+                            case flocks_button:
+                                same_color_flocks = not same_color_flocks
+                gui_manager.process_events(event)
 
             # While not paused, run simulation
             if not paused:
                 all_sprites.update()
+                gui_manager.update(time_delta)
 
         
             DrawGame()

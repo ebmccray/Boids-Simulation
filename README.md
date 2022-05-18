@@ -50,3 +50,5 @@ These are the basic principles of boid movement, according to Reynolds.
 ## Known Bugs:
 - Boids sometimes fly through very narrow obstacles
 - Boids get "caught" on edges of wall obstacles
+
+Thank you.
